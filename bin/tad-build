@@ -1,0 +1,37 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# tad-build — assemble a debug or release APK on-device, then verify it.
+set -euo pipefail
+
+_self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"; export TAD_ROOT
+# shellcheck source=lib/common.sh
+. "$TAD_ROOT/lib/common.sh"
+load_conf
+load_env
+
+VARIANT="${1:-debug}"
+case "$VARIANT" in
+  debug)   TASK="assembleDebug" ;;
+  release) TASK="assembleRelease" ;;
+  *) die "usage: tad-build [debug|release]" ;;
+esac
+
+[ -f settings.gradle.kts ] || [ -f settings.gradle ] \
+  || die "no settings.gradle[.kts] here — run from the project root (or run: tad-init)"
+
+# Keep the device awake: on-device builds are long and the screen may sleep.
+if command -v termux-wake-lock >/dev/null 2>&1; then
+  termux-wake-lock 2>/dev/null || true
+  trap 'command -v termux-wake-unlock >/dev/null 2>&1 && termux-wake-unlock 2>/dev/null || true' EXIT
+fi
+
+step "Building :app ($TASK)"
+gradle_run "$TASK"
+
+APK="$(find_apk "$VARIANT")"
+[ -n "$APK" ] || die "build finished but no $VARIANT APK was found"
+
+apk_verify "$APK" || die "APK verification failed — the build likely produced an invalid package"
+
+printf '\n'
+ok "APK: $APK ($(du -h "$APK" | cut -f1))"

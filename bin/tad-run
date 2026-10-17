@@ -1,0 +1,55 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# tad-run — build a debug APK, install it on the phone and launch it.
+set -euo pipefail
+
+_self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"; export TAD_ROOT
+# shellcheck source=lib/common.sh
+. "$TAD_ROOT/lib/common.sh"
+load_conf
+load_env
+
+LOG=0
+[ "${1:-}" = "--log" ] && LOG=1
+
+[ -f settings.gradle.kts ] || [ -f settings.gradle ] \
+  || die "no settings.gradle[.kts] here — run from the project root"
+
+# --- application id from the module build script ---------------------------
+pkg_of() {
+  local f
+  for f in app/build.gradle.kts app/build.gradle; do
+    [ -f "$f" ] || continue
+    grep -oE 'applicationId[[:space:]]*[=(]?[[:space:]]*"[^"]+"' "$f" | head -n1 \
+      | sed -e 's/.*"\(.*\)".*/\1/'
+    return 0
+  done
+}
+PKG="$(pkg_of || true)"
+[ -n "$PKG" ] || die "could not read applicationId from app/build.gradle[.kts]"
+
+# --- build -----------------------------------------------------------------
+"$TAD_BIN/tad-build" debug
+APK="$(find_apk debug)"
+[ -n "$APK" ] || die "no debug APK found"
+
+# --- device ----------------------------------------------------------------
+adb_ensure
+step "Installing on $(adb_serial)"
+adb install -r --user "${ADB_USER:-0}" "$APK"
+ok "installed $PKG"
+
+step "Launching $PKG"
+act="$(adb shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$PKG" 2>/dev/null | tail -n1 | tr -d '\r')" || true
+if [ -n "$act" ] && [ "$act" != "$PKG" ]; then
+  adb shell am start --user "${ADB_USER:-0}" -n "$act" >/dev/null
+else
+  adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
+fi
+ok "launched"
+
+if [ "$LOG" -eq 1 ]; then
+  step "Streaming logcat (Ctrl-C to stop)"
+  pid="$(adb shell pidof -s "$PKG" 2>/dev/null | tr -d '\r')" || true
+  if [ -n "$pid" ]; then adb logcat --pid "$pid"; else adb logcat; fi
+fi

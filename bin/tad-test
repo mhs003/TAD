@@ -1,0 +1,39 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# tad-test — run unit and/or on-device instrumented tests.
+set -euo pipefail
+
+_self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"; export TAD_ROOT
+# shellcheck source=lib/common.sh
+. "$TAD_ROOT/lib/common.sh"
+load_conf
+load_env
+
+WHAT="${1:-unit}"
+[ -f settings.gradle.kts ] || [ -f settings.gradle ] \
+  || die "no settings.gradle[.kts] here — run from the project root"
+
+if command -v termux-wake-lock >/dev/null 2>&1; then
+  termux-wake-lock 2>/dev/null || true
+  trap 'command -v termux-wake-unlock >/dev/null 2>&1 && termux-wake-unlock 2>/dev/null || true' EXIT
+fi
+
+unit() {
+  step "Unit tests (JVM)"
+  gradle_run testDebugUnitTest
+  ok "unit tests passed"
+}
+
+instrumented() {
+  adb_ensure
+  step "Instrumented tests on $(adb_serial)"
+  gradle_run connectedDebugAndroidTest
+  ok "instrumented tests passed"
+}
+
+case "$WHAT" in
+  unit)      unit ;;
+  ui|instrumented|device) instrumented ;;
+  all)       unit; instrumented ;;
+  *) die "usage: tad-test [unit|instrumented|all]" ;;
+esac

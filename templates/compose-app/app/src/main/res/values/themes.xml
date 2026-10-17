@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Uses a platform theme so no Material Components dependency is needed;
+         Compose Material 3 themes the UI itself. -->
+    <style name="Theme.{{APP_THEME}}" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

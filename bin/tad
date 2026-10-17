@@ -1,0 +1,41 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# tad — dispatcher: `tad <command> [args]` == `tad-<command> [args]`.
+set -euo pipefail
+
+_self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"; export TAD_ROOT
+TAD_BIN="$TAD_ROOT/bin"
+
+usage() {
+  cat <<'EOF'
+tad — on-device Android development for Termux
+
+Usage: tad <command> [args]
+
+Commands:
+  setup                Build the complete toolchain from an empty Termux
+  doctor               Check the toolchain and report problems
+  new <name>           Create a Kotlin + Compose project
+  init [dir]           Make an existing project buildable here
+  build [debug|release] Assemble and verify an APK
+  run [--log]          Build, install and launch on the device
+  install [apk]        Install an APK on the device
+  test [unit|instrumented|all]  Run tests
+  clean [--daemon|--all]        Clean build output
+  adb <cmd>            adb helpers (pair/connect/devices/...)
+
+Examples:
+  tad setup
+  tad new OpenCodeClient --package dev.me.opencode
+  cd OpenCodeClient && tad run
+EOF
+}
+
+cmd="${1:-}"
+[ -n "$cmd" ] || { usage; exit 0; }
+case "$cmd" in -h|--help|help) usage; exit 0 ;; esac
+shift || true
+
+target="$TAD_BIN/tad-$cmd"
+[ -x "$target" ] || die "unknown command: $cmd (try: tad --help)"
+exec "$target" "$@"

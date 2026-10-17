@@ -1,0 +1,139 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# tad-new — scaffold a new Kotlin + Jetpack Compose Android project.
+set -euo pipefail
+
+_self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"; export TAD_ROOT
+# shellcheck source=lib/common.sh
+. "$TAD_ROOT/lib/common.sh"
+load_conf
+load_env
+
+usage() {
+  cat <<EOF
+tad-new — create a Kotlin + Jetpack Compose Android project
+
+Usage: tad-new <name> [options]
+
+Options:
+  -p, --package <id>   Application id / namespace (default: com.example.<name>)
+  -d, --dir <path>     Target directory (default: ./<name>)
+      --no-wrapper     Do not generate the Gradle wrapper
+  -h, --help           Show this help
+
+Example:
+  tad-new OpenCodeClient --package dev.me.opencode
+EOF
+}
+
+NAME="" ; PKG="" ; DEST="" ; WRAPPER=1
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -p|--package) PKG="${2:?}"; shift 2 ;;
+    -d|--dir)     DEST="${2:?}"; shift 2 ;;
+    --no-wrapper) WRAPPER=0; shift ;;
+    -h|--help)    usage; exit 0 ;;
+    -*)           die "unknown option: $1" ;;
+    *)            NAME="$1"; shift ;;
+  esac
+done
+[ -n "$NAME" ] || { usage; exit 2; }
+
+# --- validate --------------------------------------------------------------
+case "$NAME" in
+  [A-Za-z]*) ;;
+  *) die "name must start with a letter: $NAME" ;;
+esac
+printf '%s' "$NAME" | grep -qE '^[A-Za-z][A-Za-z0-9_]*$' || die "name must be alphanumeric: $NAME"
+
+APP_NAME="$NAME"
+APP_THEME="$NAME"
+slug="$(printf '%s' "$NAME" | tr '[:upper:]' '[:lower:]' | tr -d '_')"
+PKG="${PKG:-com.example.$slug}"
+printf '%s' "$PKG" | grep -qE '^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$' \
+  || die "invalid package id: $PKG"
+PKG_PATH="${PKG//./\/}"
+DEST="${DEST:-$PWD/$NAME}"
+
+[ -e "$DEST" ] && die "destination already exists: $DEST"
+[ -d "$TAD_TEMPLATES/compose-app" ] || die "template missing: $TAD_TEMPLATES/compose-app"
+
+# --- render ----------------------------------------------------------------
+step "Creating project '$APP_NAME' at $DEST"
+render() { # <src> <dst>
+  sed \
+    -e "s|{{APP_NAME}}|$APP_NAME|g" \
+    -e "s|{{APP_THEME}}|$APP_THEME|g" \
+    -e "s|{{PKG}}|$PKG|g" \
+    -e "s|{{COMPILE_SDK}}|$COMPILE_SDK|g" \
+    -e "s|{{COMPILE_SDK_MINOR}}|$COMPILE_SDK_MINOR|g" \
+    -e "s|{{TARGET_SDK}}|$TARGET_SDK|g" \
+    -e "s|{{MIN_SDK}}|$MIN_SDK|g" \
+    -e "s|{{AGP_VERSION}}|$AGP_VERSION|g" \
+    -e "s|{{KOTLIN_VERSION}}|$KOTLIN_VERSION|g" \
+    -e "s|{{CORE_KTX}}|$CORE_KTX|g" \
+    -e "s|{{LIFECYCLE}}|$LIFECYCLE|g" \
+    -e "s|{{ACTIVITY_COMPOSE}}|$ACTIVITY_COMPOSE|g" \
+    -e "s|{{COMPOSE_BOM}}|$COMPOSE_BOM|g" \
+    -e "s|{{JUNIT}}|$JUNIT|g" \
+    -e "s|{{ANDROIDX_JUNIT}}|$ANDROIDX_JUNIT|g" \
+    -e "s|{{ESPRESSO}}|$ESPRESSO|g" \
+    "$1" > "$2"
+}
+
+count=0
+while IFS= read -r f; do
+  rel="${f#"$TAD_TEMPLATES/compose-app/"}"
+  rel="${rel//__PKG__/$PKG_PATH}"
+  mkdir -p "$DEST/$(dirname "$rel")"
+  render "$f" "$DEST/$rel"
+  count=$((count + 1))
+done < <(find "$TAD_TEMPLATES/compose-app" -type f)
+ok "rendered $count files"
+
+# --- local.properties ------------------------------------------------------
+printf 'sdk.dir=%s\n' "$ANDROID_HOME" > "$DEST/local.properties"
+ok "local.properties -> $ANDROID_HOME"
+
+# --- .gitignore ------------------------------------------------------------
+cat > "$DEST/.gitignore" <<'EOF'
+*.iml
+.gradle/
+local.properties
+.idea/
+.DS_Store
+build/
+captures/
+.externalNativeBuild/
+.cxx/
+EOF
+
+# --- Gradle wrapper --------------------------------------------------------
+# Generate the wrapper in a throwaway directory. Running `gradle wrapper` inside
+# the project would configure it and pull AGP/Kotlin from Maven — i.e. download
+# half the build just to write four files.
+if [ "$WRAPPER" -eq 1 ]; then
+  if command -v gradle >/dev/null 2>&1; then
+    step "Generating Gradle wrapper ($GRADLE_VERSION)"
+    wt="$(mktemp -d)"
+    : > "$wt/settings.gradle"
+    if ( cd "$wt" && gradle wrapper --gradle-version "$GRADLE_VERSION" --no-daemon >/dev/null 2>&1 ); then
+      cp -f "$wt/gradlew" "$wt/gradlew.bat" "$DEST/" 2>/dev/null || true
+      mkdir -p "$DEST/gradle/wrapper"
+      cp -f "$wt"/gradle/wrapper/* "$DEST/gradle/wrapper/" 2>/dev/null || true
+      chmod +x "$DEST/gradlew" 2>/dev/null || true
+      ok "wrapper -> Gradle $GRADLE_VERSION"
+    else
+      warn "wrapper generation failed; run 'gradle wrapper' inside the project"
+    fi
+    rm -rf "$wt"
+  else
+    warn "gradle not on PATH; skipping wrapper (pkg install gradle, then 'gradle wrapper')"
+  fi
+fi
+
+printf '\n'
+ok "Project ready: $DEST"
+info "Next:"
+info "  cd $DEST && tad-build        # assembleDebug"
+info "  cd $DEST && tad-run          # build, install and launch on this phone"

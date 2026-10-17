@@ -1,0 +1,99 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# tad-doctor — inspect the on-device Android toolchain and report problems.
+set -euo pipefail
+
+_self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"; export TAD_ROOT
+# shellcheck source=lib/common.sh
+. "$TAD_ROOT/lib/common.sh"
+load_conf
+load_env
+
+problems=0
+note() { ok "$*"; }
+bad()  { err "$*"; problems=$((problems + 1)); }
+
+step "Environment"
+info "root:        $TAD_ROOT"
+info "prefix:      $PREFIX"
+info "ANDROID_HOME: ${ANDROID_HOME}"
+info "JAVA_HOME:   ${JAVA_HOME:-<unset>}"
+
+step "Termux packages"
+for p in openjdk-"$JAVA_MAJOR" gradle kotlin aapt2 android-tools unzip; do
+  if pkg_installed "$p"; then note "$p"; else bad "$p not installed (pkg install $p)"; fi
+done
+
+step "Java"
+if command -v java >/dev/null 2>&1; then
+  jline="$(java -version 2>&1 | head -n1)"
+  note "$jline"
+  case "$jline" in *\"$JAVA_MAJOR.*) ;; *) warn "expected Java $JAVA_MAJOR" ;; esac
+else
+  bad "java not found (pkg install openjdk-$JAVA_MAJOR)"
+fi
+
+step "aapt2 (must be aarch64, not x86-64)"
+AAPT2="$PREFIX/bin/aapt2"
+if [ -x "$AAPT2" ]; then
+  aapt2arch="$(file -b "$AAPT2" 2>/dev/null || echo unknown)"
+  case "$aapt2arch" in
+    *aarch64*|*ARM*) note "$AAPT2 — $aapt2arch" ;;
+    *) bad "$AAPT2 is not aarch64: $aapt2arch" ;;
+  esac
+else
+  bad "aapt2 missing (pkg install aapt2)"
+fi
+
+step "Android SDK"
+if [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then note "sdkmanager"; else bad "sdkmanager missing — run tad-setup"; fi
+if [ -d "$ANDROID_HOME/platforms/android-$SDK_PLATFORM" ]; then note "platform android-$SDK_PLATFORM"; else bad "platforms;android-$SDK_PLATFORM missing"; fi
+if [ -d "$ANDROID_HOME/build-tools/$BUILD_TOOLS" ]; then note "build-tools $BUILD_TOOLS"; else bad "build-tools;$BUILD_TOOLS missing"; fi
+
+step "Gradle / Kotlin"
+if command -v gradle >/dev/null 2>&1; then
+  note "gradle $(gradle --version 2>/dev/null | sed -n 's/^Gradle //p' | head -n1)"
+else
+  bad "gradle not found (pkg install gradle)"
+fi
+if command -v kotlinc >/dev/null 2>&1; then note "kotlinc present"; else warn "kotlinc not found (pkg install kotlin)"; fi
+
+step "Gradle properties"
+GP="$HOME/.gradle/gradle.properties"
+if [ -f "$GP" ]; then
+  want="$(grep -c '^android.aapt2FromMavenOverride=' "$GP" || true)"
+  if [ "${want:-0}" -ge 1 ]; then note "aapt2 override set"; else bad "android.aapt2FromMavenOverride not set"; fi
+else
+  bad "~/.gradle/gradle.properties missing — run tad-setup"
+fi
+
+step "adb"
+if command -v adb >/dev/null 2>&1; then
+  adbpath="$(command -v adb)"
+  note "$(adb version 2>&1 | head -n1)"
+  case "$adbpath" in
+    "$ANDROID_HOME/platform-tools/"*)
+      bad "adb resolves to the SDK x86-64 binary ($adbpath); Termux adb must win" ;;
+  esac
+  if [ -L "$ANDROID_HOME/platform-tools/adb" ]; then
+    note "platform-tools/adb shim -> $(readlink "$ANDROID_HOME/platform-tools/adb")"
+  elif [ -x "$ANDROID_HOME/platform-tools/adb" ]; then
+    warn "platform-tools/adb is not shimmed; AGP connected tests may fail (re-run tad-setup)"
+  fi
+  if adb devices | awk 'NR>1 && $2=="device"{n++} END{exit !(n>0)}'; then
+    note "device connected: $(adb_serial)  (model: $(adb shell getprop ro.product.model 2>/dev/null | tr -d '\r'))"
+    note "target user: ${ADB_USER:-0}"
+  else
+    warn "no device connected — run: tad-adb connect"
+  fi
+else
+  bad "adb not found (pkg install android-tools)"
+fi
+
+printf '\n'
+if [ "$problems" -eq 0 ]; then
+  ok "All checks passed."
+else
+  err "$problems problem(s) found."
+  exit 1
+fi

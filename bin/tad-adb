@@ -1,0 +1,157 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# tad-adb — manage the adb connection used for on-device install/run/test.
+#
+# Local (same-device) workflow: Android 11+ wireless debugging lets adb on the
+# phone talk to the phone itself over 127.0.0.1.
+#   pair:    Settings > Developer options > Wireless debugging >
+#            "Pair device with pairing code"  -> shows a pairing port + code.
+#   connect: the "IP address & Port" value -> connect port (changes over time).
+set -euo pipefail
+
+_self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"; export TAD_ROOT
+# shellcheck source=lib/common.sh
+. "$TAD_ROOT/lib/common.sh"
+load_conf
+
+require_cmd adb "install the Termux 'android-tools' package"
+
+usage() {
+  cat <<EOF
+tad-adb — adb helpers for on-device development
+
+Usage: tad-adb <command> [args]
+
+Commands:
+  devices                 List connected devices
+  pair <port> [code]      Pair with the local device (wireless debugging)
+  connect [port]          Connect to 127.0.0.1:<port> (default 5555)
+  disconnect              Disconnect all tcp devices
+  tcpip [port]            Keep adbd on a fixed tcp port (default 5555)
+  shell <cmd...>          Run a shell command as the device's shell user
+  install <apk>           Install an APK for user ${ADB_USER:-0}
+  uninstall <package>     Uninstall a package for user ${ADB_USER:-0}
+  launch <package> [act]  Launch an app
+  logcat [args...]        Stream logcat
+  phantom off|on          Toggle Android's phantom process killer
+  status                  Show current connection state
+
+Notes:
+  - Pairing port and connect port are different; read both from the
+    Wireless debugging screen.
+  - This device is real hardware (not an emulator), so there is no
+    avdmanager/emulator workflow here.
+EOF
+}
+
+cmd="${1:-status}"; shift || true
+
+case "$cmd" in
+  devices)
+    adb devices -l
+    ;;
+
+  pair)
+    [ $# -ge 1 ] || die "usage: tad-adb pair <port> [code]"
+    port="$1"; shift || true
+    if [ $# -ge 1 ]; then
+      # code provided non-interactively
+      printf '%s\n' "$1" | adb pair "127.0.0.1:$port"
+    else
+      adb pair "127.0.0.1:$port"
+    fi
+    ;;
+
+  connect)
+    port="${1:-5555}"
+    adb connect "127.0.0.1:$port"
+    adb devices -l
+    ;;
+
+  disconnect)
+    adb disconnect
+    ;;
+
+  tcpip)
+    port="${1:-5555}"
+    adb tcpip "$port"
+    ok "adbd now listening on tcp port $port (until reboot)"
+    ;;
+
+  shell)
+    [ $# -ge 1 ] || die "usage: tad-adb shell <cmd...>"
+    adb shell "$@"
+    ;;
+
+  install)
+    [ $# -ge 1 ] || die "usage: tad-adb install <apk>"
+    apk="$1"
+    [ -f "$apk" ] || die "no such file: $apk"
+    adb_ensure
+    adb install -r --user "${ADB_USER:-0}" "$apk"
+    ;;
+
+  uninstall)
+    [ $# -ge 1 ] || die "usage: tad-adb uninstall <package>"
+    adb uninstall --user "${ADB_USER:-0}" "$1"
+    ;;
+
+  launch)
+    [ $# -ge 1 ] || die "usage: tad-adb launch <package> [activity]"
+    pkg="$1"; act="${2:-}"
+    if [ -z "$act" ]; then
+      act="$(adb shell cmd package resolve-activity --brief "$pkg" 2>/dev/null | tail -n1 | tr -d '\r')"
+      [ -n "$act" ] && [ "$act" != "$pkg" ] || die "could not resolve launcher activity for $pkg"
+    fi
+    adb shell am start --user "${ADB_USER:-0}" -n "$act"
+    ;;
+
+  logcat)
+    adb logcat "$@"
+    ;;
+
+  phantom)
+    mode="${1:-status}"
+    case "$mode" in
+      off)
+        adb shell "settings put global settings_enable_monitor_phantom_procs false"
+        ok "phantom process killer disabled (remember to re-enable; it can drain battery)"
+        ;;
+      on)
+        adb shell "settings put global settings_enable_monitor_phantom_procs true"
+        ok "phantom process killer enabled"
+        ;;
+      *)
+        adb shell settings get global settings_enable_monitor_phantom_procs
+        ;;
+    esac
+    ;;
+
+  status)
+    adb start-server >/dev/null 2>&1 || true
+    step "adb devices"
+    adb devices -l
+    if adb devices | awk 'NR>1 && $2=="device"{n++} END{exit !(n>0)}'; then
+      note_model="$(adb shell getprop ro.product.model 2>/dev/null | tr -d '\r')"
+      ok "connected: $(adb_serial) — ${note_model}"
+      info "Android SDK: $(adb shell getprop ro.build.version.sdk 2>/dev/null | tr -d '\r')"
+      info "ABI:         $(adb shell getprop ro.product.cpu.abi 2>/dev/null | tr -d '\r')"
+    else
+      warn "no device connected"
+      info "pair then connect, e.g.:"
+      info "  tad-adb pair <pairing-port> <code>"
+      info "  tad-adb connect <connect-port>"
+    fi
+    ;;
+
+  -h|--help|help)
+    usage
+    ;;
+
+  *)
+    err "unknown command: $cmd"
+    printf '\n'
+    usage
+    exit 2
+    ;;
+esac

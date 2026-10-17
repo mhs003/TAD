@@ -1,0 +1,72 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# tad-init — make an existing Android (Kotlin/Compose) project buildable here.
+set -euo pipefail
+
+_self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"; export TAD_ROOT
+# shellcheck source=lib/common.sh
+. "$TAD_ROOT/lib/common.sh"
+load_conf
+load_env
+
+DIR="${1:-$PWD}"
+cd "$DIR" || die "no such directory: $DIR"
+
+[ -d app ] || [ -f settings.gradle ] || [ -f settings.gradle.kts ] \
+  || die "not an Android project (no settings.gradle[.kts] or app/): $DIR"
+
+step "Initialising $PWD"
+
+# --- local.properties ------------------------------------------------------
+printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
+ok "local.properties -> $ANDROID_HOME"
+
+# --- gradle.properties -----------------------------------------------------
+GP="gradle.properties"
+touch "$GP"
+set_gp() {
+  local k="$1" v="$2"
+  if grep -q "^${k}=" "$GP" 2>/dev/null; then
+    sed -i "s|^${k}=.*|${k}=${v}|" "$GP"
+  else
+    printf '%s=%s\n' "$k" "$v" >> "$GP"
+  fi
+}
+set_gp android.useAndroidX "true"
+ok "gradle.properties updated (AndroidX on)"
+
+# --- align SDK levels with what is installed locally ------------------------
+if [ -f app/build.gradle.kts ] || [ -f app/build.gradle ]; then
+  APPGRADLE="app/build.gradle.kts"; [ -f "$APPGRADLE" ] || APPGRADLE="app/build.gradle"
+  if grep -qE 'compileSdk(Version)?[ =]' "$APPGRADLE"; then
+    info "current SDK line: $(grep -oE 'compileSdk(Version)?[ =]+[0-9]+' "$APPGRADLE" | head -n1)"
+    info "installed platform: android-$SDK_PLATFORM (adjust the module if it differs)"
+  fi
+fi
+
+# --- Gradle wrapper --------------------------------------------------------
+if [ -x ./gradlew ]; then
+  ok "Gradle wrapper present"
+elif command -v gradle >/dev/null 2>&1; then
+  step "Generating Gradle wrapper ($GRADLE_VERSION)"
+  # Generate in a throwaway dir so the project is not configured (and AGP/Kotlin
+  # are not downloaded) just to write the wrapper files.
+  wt="$(mktemp -d)"
+  : > "$wt/settings.gradle"
+  if ( cd "$wt" && gradle wrapper --gradle-version "$GRADLE_VERSION" --no-daemon >/dev/null 2>&1 ); then
+    cp -f "$wt/gradlew" "$wt/gradlew.bat" ./ 2>/dev/null || true
+    mkdir -p gradle/wrapper
+    cp -f "$wt"/gradle/wrapper/* gradle/wrapper/ 2>/dev/null || true
+    chmod +x ./gradlew 2>/dev/null || true
+    ok "wrapper -> Gradle $GRADLE_VERSION"
+  else
+    warn "wrapper generation failed"
+  fi
+  rm -rf "$wt"
+else
+  warn "no wrapper and no gradle on PATH (pkg install gradle)"
+fi
+
+printf '\n'
+ok "Project initialised."
+info "Next: tad-build   (or: tad-run to install and launch)"

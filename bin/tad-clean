@@ -1,0 +1,32 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# tad-clean — clean build output (and optionally the Gradle daemon/caches).
+set -euo pipefail
+
+_self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"; export TAD_ROOT
+# shellcheck source=lib/common.sh
+. "$TAD_ROOT/lib/common.sh"
+load_conf
+load_env
+
+if [ -f settings.gradle.kts ] || [ -f settings.gradle ]; then
+  step "gradle clean"
+  gradle_run clean
+else
+  warn "not in a project root; nothing to clean here"
+fi
+
+case "${1:-}" in
+  --daemon)
+    step "Stopping Gradle daemons"
+    command -v gradle >/dev/null 2>&1 && gradle --stop >/dev/null 2>&1 || true
+    ok "daemons stopped"
+    ;;
+  --all)
+    step "Removing build directories"
+    find . -type d -name build -prune -exec rm -rf {} + 2>/dev/null || true
+    ok "build dirs removed"
+    ;;
+esac
+
+ok "clean complete"

@@ -1,0 +1,23 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# tad-install — install an APK on the phone (built output or an explicit path).
+set -euo pipefail
+
+_self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"; export TAD_ROOT
+# shellcheck source=lib/common.sh
+. "$TAD_ROOT/lib/common.sh"
+load_conf
+load_env
+
+APK="${1:-}"
+if [ -z "$APK" ]; then
+  if [ -f settings.gradle.kts ] || [ -f settings.gradle ]; then
+    APK="$(find_apk debug)"
+  fi
+fi
+[ -n "$APK" ] && [ -f "$APK" ] || die "usage: tad-install <apk>   (or run in a project with a built debug APK)"
+
+adb_ensure
+step "Installing $(basename "$APK") on $(adb_serial)"
+adb install -r --user "${ADB_USER:-0}" "$APK"
+ok "installed"
