@@ -2,7 +2,7 @@
 # TAD installer — clone (or update) the repository, then set up the toolchain.
 set -euo pipefail
 
-REPO="${TAD_REPO:-https://github.com/monzurulhasan1001/TAD}"
+REPO="${TAD_REPO:-https://github.com/mhs003/TAD.git}"
 DIR="${TAD_INSTALL_DIR:-$HOME/.local/share/TAD}"
 
 command -v git >/dev/null 2>&1 || pkg install -y git

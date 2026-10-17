@@ -12,7 +12,7 @@ wrappers or curl-pipe-to-shell installers.
 One line:
 
 ```bash
-pkg install -y git && git clone --depth 1 https://github.com/monzurulhasan1001/TAD ~/.local/share/TAD && ~/.local/share/TAD/bin/tad-setup
+pkg install -y git && git clone --depth 1 https://github.com/mhs003/TAD ~/.local/share/TAD && ~/.local/share/TAD/bin/tad-setup
 ```
 
 Then `source ~/.bashrc` and check it over with `tad doctor`.
