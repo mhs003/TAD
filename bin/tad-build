@@ -9,11 +9,18 @@ TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"; export TAD_ROOT
 load_conf
 load_env
 
+case "${1:-}" in
+  -h|--help|help)
+    printf '%s\n' "tad build — assemble an APK and verify its contents"
+    printf '%s\n' "  usage: tad build [debug|release]   (default: debug)"
+    exit 0 ;;
+esac
+
 VARIANT="${1:-debug}"
 case "$VARIANT" in
   debug)   TASK="assembleDebug" ;;
   release) TASK="assembleRelease" ;;
-  *) die "usage: tad-build [debug|release]" ;;
+  *) die "usage: tad build [debug|release]" ;;
 esac
 
 [ -f settings.gradle.kts ] || [ -f settings.gradle ] \

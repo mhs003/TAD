@@ -13,6 +13,9 @@ load_conf
 
 in_termux || die "this toolchain targets Termux and must run inside it"
 
+printf '\n%s%s%s\n' "$_b" "TAD — Termux Android Dev" "$_r"
+printf '  %s\n\n' "Installing the on-device toolchain. Safe to re-run at any time."
+
 # Report failures plainly; every step is safe to re-run.
 on_error() {
   local code=$?

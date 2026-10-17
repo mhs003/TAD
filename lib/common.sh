@@ -22,18 +22,28 @@ TAD_TEMPLATES="$TAD_ROOT/templates"
 # ---------------------------------------------------------------------------
 # Output
 # ---------------------------------------------------------------------------
-if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
-  _r=$'\033[0m'; _b=$'\033[1m'
-  _red=$'\033[31m'; _grn=$'\033[32m'; _ylw=$'\033[33m'; _blu=$'\033[34m'
+# Colour unless NO_COLOR is set; FORCE_COLOR keeps it on when output is piped.
+if [ -n "${FORCE_COLOR:-}" ] || { [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; }; then
+  _r=$'\033[0m'; _b=$'\033[1m'; _dim=$'\033[2m'
+  _red=$'\033[31m'; _grn=$'\033[32m'; _ylw=$'\033[33m'
+  _blu=$'\033[34m'; _mag=$'\033[35m'; _cyn=$'\033[36m'
 else
-  _r=; _b=; _red=; _grn=; _ylw=; _blu=
+  _r=; _b=; _dim=; _red=; _grn=; _ylw=; _blu=; _mag=; _cyn=
 fi
-step() { printf '%s\n' "${_b}==>${_r} $*"; }
-info() { printf '%s\n' "    $*"; }
-ok()   { printf '%s\n' "${_grn}  ok${_r} $*"; }
-warn() { printf '%s\n' "${_ylw}  !${_r} $*" >&2; }
-err()  { printf '%s\n' "${_red}  x${_r} $*" >&2; }
-die()  { err "$*"; exit 1; }
+
+# --- output ----------------------------------------------------------------
+step()  { printf '%s▸%s %s%s%s\n' "$_cyn" "$_r" "$_b" "$*" "$_r"; }
+info()  { printf '  %s%s%s\n' "$_dim" "$*" "$_r"; }
+ok()    { printf '  %s✓%s %s\n' "$_grn" "$_r" "$*"; }
+warn()  { printf '  %s!%s %s\n' "$_ylw" "$_r" "$*" >&2; }
+err()   { printf '  %s✗%s %s\n' "$_red" "$_r" "$*" >&2; }
+die()   { err "$*"; exit 1; }
+kv()    { printf '  %s%-13s%s %s\n' "$_dim" "$1" "$_r" "$2"; }
+title() { printf '\n%s%s%s\n' "$_b" "$*" "$_r"; }
+group() { printf '\n  %s%s%s\n' "$_b$_mag" "$*" "$_r"; }
+cmdrow() { printf '    %s%-11s%s %s\n' "$_cyn" "$1" "$_r" "$2"; }
+_tad_hr="────────────────────────────────────────────────────────"
+hr()    { printf '%s%s%s\n' "$_dim" "$_tad_hr" "$_r"; }
 
 confirm() {
   local reply

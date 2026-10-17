@@ -17,6 +17,10 @@ else
 fi
 
 case "${1:-}" in
+  -h|--help|help)
+    printf '%s\n' "tad clean — clean build output"
+    printf '%s\n' "  usage: tad clean [--daemon|--all]"
+    exit 0 ;;
   --daemon)
     step "Stopping Gradle daemons"
     command -v gradle >/dev/null 2>&1 && gradle --stop >/dev/null 2>&1 || true

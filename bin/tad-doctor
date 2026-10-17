@@ -14,10 +14,10 @@ note() { ok "$*"; }
 bad()  { err "$*"; problems=$((problems + 1)); }
 
 step "Environment"
-info "root:        $TAD_ROOT"
-info "prefix:      $PREFIX"
-info "ANDROID_HOME: ${ANDROID_HOME}"
-info "JAVA_HOME:   ${JAVA_HOME:-<unset>}"
+kv "root" "$TAD_ROOT"
+kv "prefix" "$PREFIX"
+kv "ANDROID_HOME" "$ANDROID_HOME"
+kv "JAVA_HOME" "${JAVA_HOME:-<unset>}"
 
 step "Termux packages"
 for p in openjdk-"$JAVA_MAJOR" gradle kotlin aapt2 android-tools unzip; do
@@ -91,9 +91,10 @@ else
 fi
 
 printf '\n'
+hr
 if [ "$problems" -eq 0 ]; then
-  ok "All checks passed."
+  ok "all checks passed"
 else
-  err "$problems problem(s) found."
+  err "$problems problem(s) found"
   exit 1
 fi

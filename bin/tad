@@ -1,41 +1,54 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# tad — dispatcher: `tad <command> [args]` == `tad-<command> [args]`.
+# tad — dispatch to the tad-* commands.
 set -euo pipefail
 
 _self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
-TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"; export TAD_ROOT
-TAD_BIN="$TAD_ROOT/bin"
+TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"
+# shellcheck source=../lib/common.sh
+. "$TAD_ROOT/lib/common.sh"
 
 usage() {
-  cat <<'EOF'
-tad — on-device Android development for Termux
+  printf '%s%s%s\n' "$_b" "TAD — Termux Android Dev" "$_r"
+  printf '  %s\n' "Build, install and test Kotlin + Compose apps on-device, in Termux."
+  printf '\n  %sUsage:%s tad <command> [args]\n' "$_b" "$_r"
 
-Usage: tad <command> [args]
+  group "Toolchain"
+  cmdrow setup   "install the toolchain (JDK, Android SDK, build-tools)"
+  cmdrow doctor  "check the toolchain and report problems"
 
-Commands:
-  setup                Build the complete toolchain from an empty Termux
-  doctor               Check the toolchain and report problems
-  new <name>           Create a Kotlin + Compose project
-  init [dir]           Make an existing project buildable here
-  build [debug|release] Assemble and verify an APK
-  run [--log]          Build, install and launch on the device
-  install [apk]        Install an APK on the device
-  test [unit|instrumented|all]  Run tests
-  clean [--daemon|--all]        Clean build output
-  adb <cmd>            adb helpers (pair/connect/devices/...)
+  group "Project"
+  cmdrow new     "new <name> [--package <id>] [--dir <path>]"
+  cmdrow init    "init [dir] — make an existing project buildable"
 
-Examples:
-  tad setup
-  tad new MyApp --package com.example.myapp
-  cd MyApp && tad run
-EOF
+  group "Build and run"
+  cmdrow build   "build [debug|release] — assemble and verify an APK"
+  cmdrow run     "run [--log] — build, install and launch"
+  cmdrow install "install [apk] — install an APK on the device"
+  cmdrow test    "test [unit|instrumented|all]"
+  cmdrow clean   "clean [--daemon|--all]"
+
+  group "Device"
+  cmdrow adb     "adb <cmd> — pair, connect, devices, logcat, …"
+
+  printf '\n  %sExamples%s\n' "$_b" "$_r"
+  printf '    %s\n' "tad setup"
+  printf '    %s\n' "tad new MyApp --package com.example.myapp"
+  printf '    %s\n' "cd MyApp && tad run"
+  printf '\n'
 }
 
 cmd="${1:-}"
-[ -n "$cmd" ] || { usage; exit 0; }
-case "$cmd" in -h|--help|help) usage; exit 0 ;; esac
+case "$cmd" in
+  ""|-h|--help|help) usage; exit 0 ;;
+esac
 shift || true
 
-target="$TAD_BIN/tad-$cmd"
-[ -x "$target" ] || die "unknown command: $cmd (try: tad --help)"
+target="$TAD_ROOT/bin/tad-$cmd"
+if [ ! -x "$target" ]; then
+  err "unknown command: $cmd"
+  printf '\n'
+  usage
+  exit 2
+fi
+
 exec "$target" "$@"

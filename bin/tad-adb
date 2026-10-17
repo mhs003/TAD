@@ -17,31 +17,30 @@ load_conf
 require_cmd adb "install the Termux 'android-tools' package"
 
 usage() {
-  cat <<EOF
-tad-adb — adb helpers for on-device development
+  printf '%s%s%s\n' "$_b" "tad adb — device helpers" "$_r"
+  printf '  %s\n' "Wireless debugging and install helpers for the on-device workflow."
+  printf '\n  %sUsage:%s tad adb <command> [args]\n' "$_b" "$_r"
 
-Usage: tad-adb <command> [args]
+  group "Connection"
+  cmdrow devices     "list connected devices"
+  cmdrow pair        "pair <port> [code] — pair over wireless debugging"
+  cmdrow connect     "connect [port] — connect to 127.0.0.1 (default 5555)"
+  cmdrow disconnect  "drop all tcp connections"
+  cmdrow tcpip       "tcpip [port] — pin adbd to a port until reboot"
+  cmdrow status      "show the current connection state"
 
-Commands:
-  devices                 List connected devices
-  pair <port> [code]      Pair with the local device (wireless debugging)
-  connect [port]          Connect to 127.0.0.1:<port> (default 5555)
-  disconnect              Disconnect all tcp devices
-  tcpip [port]            Keep adbd on a fixed tcp port (default 5555)
-  shell <cmd...>          Run a shell command as the device's shell user
-  install <apk>           Install an APK for user ${ADB_USER:-0}
-  uninstall <package>     Uninstall a package for user ${ADB_USER:-0}
-  launch <package> [act]  Launch an app
-  logcat [args...]        Stream logcat
-  phantom off|on          Toggle Android's phantom process killer
-  status                  Show current connection state
+  group "App"
+  cmdrow install     "install <apk> — install for user ${ADB_USER:-0}"
+  cmdrow uninstall   "uninstall <package>"
+  cmdrow launch      "launch <package> [activity]"
+  cmdrow logcat      "logcat [args…] — stream device logs"
 
-Notes:
-  - Pairing port and connect port are different; read both from the
-    Wireless debugging screen.
-  - This device is real hardware (not an emulator), so there is no
-    avdmanager/emulator workflow here.
-EOF
+  group "Device"
+  cmdrow shell       "shell <cmd…> — run a shell command on the device"
+  cmdrow phantom     "phantom off|on — toggle the phantom process killer"
+
+  printf '\n  %sNote%s pairing and connect use different ports; both are shown under\n' "$_b" "$_r"
+  printf '  Developer options → Wireless debugging.\n\n'
 }
 
 cmd="${1:-status}"; shift || true

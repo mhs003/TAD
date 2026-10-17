@@ -9,6 +9,13 @@ TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"; export TAD_ROOT
 load_conf
 load_env
 
+case "${1:-}" in
+  -h|--help|help)
+    printf '%s\n' "tad test — run tests"
+    printf '%s\n' "  usage: tad test [unit|instrumented|all]   (default: unit)"
+    exit 0 ;;
+esac
+
 WHAT="${1:-unit}"
 [ -f settings.gradle.kts ] || [ -f settings.gradle ] \
   || die "no settings.gradle[.kts] here — run from the project root"
