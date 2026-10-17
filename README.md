@@ -9,16 +9,19 @@ wrappers or curl-pipe-to-shell installers.
 
 ## Install
 
+One line:
+
 ```bash
-cd ~/TAD
-./bin/tad-setup      # installs the toolchain (~500 MB, idempotent)
-source ~/.bashrc
-tad doctor           # verify
+pkg install -y git && git clone --depth 1 https://github.com/monzurulhasan1001/TAD ~/.local/share/TAD && ~/.local/share/TAD/bin/tad-setup
 ```
 
-`tad-setup` installs the Termux packages, downloads Google's SDK command-line
+Then `source ~/.bashrc` and check it over with `tad doctor`.
+
+The installer installs the Termux packages, downloads Google's SDK command-line
 tools, accepts the SDK licences, installs the platform and build-tools, writes
 `env.sh`, hooks it into `~/.bashrc`, and configures `~/.gradle/gradle.properties`.
+It is idempotent, so re-run it any time. `./install.sh` does the same thing if
+you would rather not paste a one-liner.
 
 ## Commands
 
@@ -38,8 +41,8 @@ tools, accepts the SDK licences, installs the platform and build-tools, writes
 ## Quick start
 
 ```bash
-tad new OpenCodeClient --package dev.me.opencode
-cd OpenCodeClient
+tad new MyApp --package com.example.myapp
+cd MyApp
 tad build                 # assembleDebug + APK verification
 tad run                   # build, install, launch
 tad test unit             # JVM unit tests
@@ -111,9 +114,8 @@ TAD/
 ```
 
 The bundled Agent Skill teaches any Agent-Skills-compatible coding agent how to
-drive `tad`. It lives at `.agents/skills/tad/` — the cross-tool Agent Skills
-location — so it also works from `~/.agents/skills/` or `.commandcode/skills/`
-in other projects.
+drive `tad`. It lives at `.agents/skills/tad/`, and copying it to
+`~/.agents/skills/` makes it available in other projects.
 
 ## Troubleshooting
 

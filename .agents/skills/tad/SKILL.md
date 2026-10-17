@@ -27,7 +27,7 @@ anything else. If `tad` itself is missing, the tool is not installed — see bel
 ## Installing (only when the user asks)
 
 ```bash
-cd ~/TAD && ./bin/tad-setup && source ~/.bashrc
+cd ~/.local/share/TAD && ./bin/tad-setup && source ~/.bashrc
 ```
 
 This downloads several hundred MB. Ask before running it unless the user already
@@ -74,8 +74,8 @@ failure or a dropped connection.
 ## Worked example
 
 ```bash
-tad new OpenCodeClient --package dev.me.opencode
-cd OpenCodeClient
+tad new MyApp --package com.example.myapp
+cd MyApp
 tad build                 # verify the debug APK assembles
 tad run                   # install and launch on the phone
 tad test unit

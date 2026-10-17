@@ -22,7 +22,7 @@ Options:
   -h, --help           Show this help
 
 Example:
-  tad-new OpenCodeClient --package dev.me.opencode
+  tad-new MyApp --package com.example.myapp
 EOF
 }
 

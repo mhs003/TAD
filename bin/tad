@@ -26,8 +26,8 @@ Commands:
 
 Examples:
   tad setup
-  tad new OpenCodeClient --package dev.me.opencode
-  cd OpenCodeClient && tad run
+  tad new MyApp --package com.example.myapp
+  cd MyApp && tad run
 EOF
 }
 
