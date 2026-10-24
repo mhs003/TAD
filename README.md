@@ -32,6 +32,7 @@ you would rather not paste a one-liner.
 | `tad new <name> [--package <id>] [--dir <path>]` | Create a Kotlin + Compose project |
 | `tad init [dir]` | Make an existing project buildable on-device |
 | `tad build [debug\|release]` | Assemble an APK and verify its contents |
+| `tad compile [debug\|release\|all]` | Compile Kotlin sources without packaging an APK |
 | `tad run [--log]` | Build, install and launch on the device |
 | `tad install [apk]` | Install an APK on the device |
 | `tad test [unit\|instrumented\|all]` | Run JVM and/or on-device tests |
@@ -43,6 +44,7 @@ you would rather not paste a one-liner.
 ```bash
 tad new MyApp --package com.example.myapp
 cd MyApp
+tad compile               # fast typecheck, no APK
 tad build                 # assembleDebug + APK verification
 tad run                   # build, install, launch
 tad test unit             # JVM unit tests

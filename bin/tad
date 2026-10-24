@@ -22,6 +22,7 @@ usage() {
 
   group "Build and run"
   cmdrow build   "build [debug|release] — assemble and verify an APK"
+  cmdrow compile "compile [debug|release|all] — typecheck without packaging"
   cmdrow run     "run [--log] — build, install and launch"
   cmdrow install "install [apk] — install an APK on the device"
   cmdrow test    "test [unit|instrumented|all]"

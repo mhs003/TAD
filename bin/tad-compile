@@ -1,0 +1,53 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# tad-compile — compile Kotlin sources without assembling or verifying an APK.
+set -euo pipefail
+
+_self="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+TAD_ROOT="$(cd "$(dirname "$_self")/.." && pwd)"; export TAD_ROOT
+# shellcheck source=lib/common.sh
+. "$TAD_ROOT/lib/common.sh"
+load_conf
+load_env
+
+case "${1:-}" in
+  -h|--help|help)
+    printf '%s\n' "tad compile — compile Kotlin sources without packaging an APK"
+    printf '%s\n' "  usage: tad compile [debug|release|all]   (default: debug)"
+    exit 0 ;;
+esac
+
+WHAT="${1:-debug}"
+case "$WHAT" in
+  debug|release|all) ;;
+  *) die "usage: tad compile [debug|release|all]" ;;
+esac
+
+[ -f settings.gradle.kts ] || [ -f settings.gradle ] \
+  || die "no settings.gradle[.kts] here — run from the project root (or run: tad-init)"
+
+# Keep the device awake: compilation is still a long on-device task.
+if command -v termux-wake-lock >/dev/null 2>&1; then
+  termux-wake-lock 2>/dev/null || true
+  trap 'command -v termux-wake-unlock >/dev/null 2>&1 && termux-wake-unlock 2>/dev/null || true' EXIT
+fi
+
+compile_one() {
+  local variant="$1" task
+  case "$variant" in
+    debug)   task="compileDebugKotlin" ;;
+    release) task="compileReleaseKotlin" ;;
+  esac
+  step "Compiling Kotlin ($variant)"
+  gradle_run "$task"
+  ok "$variant sources compile"
+}
+
+if [ "$WHAT" = all ]; then
+  compile_one debug
+  compile_one release
+else
+  compile_one "$WHAT"
+fi
+
+printf '\n'
+ok "No APK was assembled — use: tad build [debug|release]"

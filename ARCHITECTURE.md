@@ -43,7 +43,7 @@ graph TD
 |---|---|
 | `bin/tad` | Dispatcher; resolves the root and `exec`s `bin/tad-<cmd>` |
 | `bin/tad-setup` | Installs Termux packages and the Google SDK, writes `env.sh`, configures Gradle |
-| `bin/tad-*` | One command each: `doctor`, `new`, `init`, `build`, `run`, `install`, `test`, `clean`, `adb` |
+| `bin/tad-*` | One command each: `doctor`, `new`, `init`, `build`, `compile`, `run`, `install`, `test`, `clean`, `adb` |
 | `lib/common.sh` | Path resolution, output helpers, config and env loading, Gradle invocation, APK verification, adb helpers |
 | `tad.conf` | The single source of version and path truth |
 | `templates/compose-app` | Compose project template, rendered by token substitution |
@@ -63,9 +63,10 @@ tokens (`PKG`, SDK levels, plugin versions), writes `local.properties`, and
 generates the Gradle wrapper *in a throwaway directory* so the project is never
 configured just to write four files.
 
-**Build.** `tad build` runs Gradle and then verifies the resulting APK.
-Verification is not optional: Gradle can print `BUILD SUCCESSFUL` while emitting
-an APK with no manifest or resource table.
+**Build.** `tad compile` runs only `compileDebugKotlin` (or the chosen variant)
+for a faster typecheck with no packaging. `tad build` runs Gradle and then
+verifies the resulting APK. Verification is not optional: Gradle can print
+`BUILD SUCCESSFUL` while emitting an APK with no manifest or resource table.
 
 **Run and test.** `tad run` builds, installs with `--user 0`, resolves the
 launcher activity and starts it. `tad test instrumented` delegates to Gradle's

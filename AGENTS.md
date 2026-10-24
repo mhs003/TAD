@@ -25,6 +25,7 @@ and cheap to re-run.
 |---|---|
 | Verify the toolchain | `tad doctor` |
 | Scaffold a project | `tad new MyApp --package com.example.myapp` |
+| Compile without packaging | `tad compile [debug\|release\|all]` (from a project root) |
 | Build and verify an APK | `tad build [debug\|release]` (from a project root) |
 | Install and launch | `tad run` |
 | Tests | `tad test unit` / `tad test instrumented` |
