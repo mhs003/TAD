@@ -130,13 +130,5 @@ drive `tad`. It lives at `.agents/skills/tad/`, and copying it to
 | `WARNING: ... 'android.aapt2FromMavenOverride' is experimental` | Expected. AGP marks the option experimental; it is required for on-device builds. |
 | Gradle daemon misbehaving | `tad clean --daemon`. |
 
-## Verified configuration
-
-Tested end to end on a TECNO KL5 (`arm64-v8a`, Android 14 / SDK 34) with:
-
-- Termux: `openjdk-21` 21.0.12, `gradle` 9.8.1, `kotlin` 2.4.21, `aapt2` 16.0.0.4
-- Android SDK: build-tools 36.0.0, platform android-37.2, cmdline-tools 14742923
-- Build: AGP 9.4.1, Gradle 9.8.1, Kotlin 2.2.10, Compose BOM 2026.09.00
-
-Confirmed working: debug APK, minified + resource-shrunk release APK, JVM unit
-tests, and Compose UI instrumented tests executed on the device.
+## License
+This project is licensed under the [MIT License](./LICENSE).
